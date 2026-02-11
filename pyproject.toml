@@ -39,9 +39,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/soufiane-aazizi/mcp-python-repl"
-Repository = "https://github.com/soufiane-aazizi/mcp-python-repl"
-Issues = "https://github.com/soufiane-aazizi/mcp-python-repl/issues"
+Homepage = "https://github.com/aazizisoufiane"
+Repository = "https://github.com/aazizisoufiane/mcp-python-repl"
+Issues = "https://github.com/aazizisoufiane/mcp-python-repl/issues"
 
 [project.scripts]
 mcp-python-repl = "mcp_python_repl.server:main"
@@ -64,3 +64,7 @@ packages = ["src/mcp_python_repl"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[pypi]
+username = __token__
+password = pypi-TON_TOKEN_ICI

@@ -7,7 +7,6 @@ from __future__ import annotations
 import builtins
 import io
 import signal
-import sys
 import traceback
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
@@ -88,7 +87,9 @@ def execute_code(
     - Records execution in session history
     """
     if not code or not code.strip():
-        return ExecutionResult(status="error", error_type="ValueError", error_message="No code provided")
+        return ExecutionResult(
+            status="error", error_type="ValueError", error_message="No code provided"
+        )
 
     # Build execution namespace
     exec_ns: dict[str, Any] = {**session.namespace}
@@ -202,6 +203,7 @@ def execute_code(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _truncate(text: str, max_bytes: int) -> str:
     if len(text) <= max_bytes:

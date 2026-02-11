@@ -19,26 +19,30 @@ DEFAULT_MAX_OUTPUT_BYTES = 1_048_576  # 1 MB
 DEFAULT_LOG_ENTRIES = 200
 
 # Modules / builtins that are blocked in sandboxed mode
-SANDBOXED_BLOCKED_MODULES = frozenset({
-    "subprocess",
-    "shutil",
-    "ctypes",
-    "socket",
-    "http.server",
-    "xmlrpc",
-    "ftplib",
-    "smtplib",
-    "telnetlib",
-    "webbrowser",
-    "antigravity",
-})
+SANDBOXED_BLOCKED_MODULES = frozenset(
+    {
+        "subprocess",
+        "shutil",
+        "ctypes",
+        "socket",
+        "http.server",
+        "xmlrpc",
+        "ftplib",
+        "smtplib",
+        "telnetlib",
+        "webbrowser",
+        "antigravity",
+    }
+)
 
-SANDBOXED_BLOCKED_BUILTINS = frozenset({
-    "exec",
-    "eval",
-    "compile",
-    "__import__",
-})
+SANDBOXED_BLOCKED_BUILTINS = frozenset(
+    {
+        "exec",
+        "eval",
+        "compile",
+        "__import__",
+    }
+)
 
 
 @dataclass(frozen=True)

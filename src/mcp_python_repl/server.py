@@ -25,7 +25,6 @@ import os
 import subprocess
 import sys
 from dataclasses import asdict
-from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
@@ -55,6 +54,7 @@ mcp = FastMCP(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _var_preview(value: object, max_len: int = 100) -> str:
     """Human-readable preview of a Python object."""
@@ -113,6 +113,7 @@ def _result_to_json(res: ExecutionResult, session_id: str, namespace_keys: list[
 # Pydantic input models
 # ===================================================================
 
+
 class RunCodeInput(BaseModel):
     """Input for executing Python code."""
 
@@ -125,7 +126,7 @@ class RunCodeInput(BaseModel):
         min_length=1,
         max_length=500_000,
     )
-    session_id: Optional[str] = Field(
+    session_id: str | None = Field(
         default=None,
         description="Session ID to resume. Omit to create a new session.",
         max_length=20,
@@ -140,8 +141,10 @@ class RunFileInput(BaseModel):
         description="Absolute or relative path to the .py file.",
         min_length=1,
     )
-    session_id: Optional[str] = Field(default=None, description="Session ID to resume.", max_length=20)
-    args: Optional[str] = Field(default=None, description="Space-separated CLI arguments.")
+    session_id: str | None = Field(
+        default=None, description="Session ID to resume.", max_length=20
+    )
+    args: str | None = Field(default=None, description="Space-separated CLI arguments.")
 
 
 class InstallPackageInput(BaseModel):
@@ -186,6 +189,7 @@ class HistoryInput(BaseModel):
 # ===================================================================
 # Tools
 # ===================================================================
+
 
 @mcp.tool(
     name="repl_run_code",
@@ -246,21 +250,27 @@ def repl_run_file(params: RunFileInput) -> str:
         file_path = os.path.abspath(file_path)
 
     if not os.path.isfile(file_path):
-        return json.dumps({
-            "status": "error",
-            "error_type": "FileNotFoundError",
-            "message": f"File not found: {file_path}",
-        }, indent=2)
+        return json.dumps(
+            {
+                "status": "error",
+                "error_type": "FileNotFoundError",
+                "message": f"File not found: {file_path}",
+            },
+            indent=2,
+        )
 
     try:
         with open(file_path, encoding="utf-8") as fh:
             code = fh.read()
     except Exception as exc:
-        return json.dumps({
-            "status": "error",
-            "error_type": type(exc).__name__,
-            "message": str(exc),
-        }, indent=2)
+        return json.dumps(
+            {
+                "status": "error",
+                "error_type": type(exc).__name__,
+                "message": str(exc),
+            },
+            indent=2,
+        )
 
     session = _sessions.get_or_create(params.session_id)
 
@@ -302,9 +312,16 @@ def repl_install_package(params: InstallPackageInput) -> str:
         JSON with installation status and output.
     """
     # Prefer uv for speed, fall back to pip
-    uv_available = subprocess.run(
-        ["uv", "--version"], capture_output=True, timeout=5  # noqa: S603, S607
-    ).returncode == 0 if _is_command_available("uv") else False
+    uv_available = (
+        subprocess.run(
+            ["uv", "--version"],
+            capture_output=True,
+            timeout=5,  # noqa: S603, S607
+        ).returncode
+        == 0
+        if _is_command_available("uv")
+        else False
+    )
 
     if uv_available:
         cmd = ["uv", "pip", "install", params.package]
@@ -318,31 +335,41 @@ def repl_install_package(params: InstallPackageInput) -> str:
             text=True,
             timeout=_config.timeout_seconds * 4,  # give installs more time
         )
-        return json.dumps({
-            "status": "ok" if proc.returncode == 0 else "error",
-            "package": params.package,
-            "installer": "uv" if uv_available else "pip",
-            "returncode": proc.returncode,
-            "stdout": proc.stdout[-2000:] if proc.stdout else "",
-            "stderr": proc.stderr[-2000:] if proc.stderr else "",
-        }, indent=2)
+        return json.dumps(
+            {
+                "status": "ok" if proc.returncode == 0 else "error",
+                "package": params.package,
+                "installer": "uv" if uv_available else "pip",
+                "returncode": proc.returncode,
+                "stdout": proc.stdout[-2000:] if proc.stdout else "",
+                "stderr": proc.stderr[-2000:] if proc.stderr else "",
+            },
+            indent=2,
+        )
     except subprocess.TimeoutExpired:
-        return json.dumps({
-            "status": "timeout",
-            "package": params.package,
-            "message": "Installation timed out.",
-        }, indent=2)
+        return json.dumps(
+            {
+                "status": "timeout",
+                "package": params.package,
+                "message": "Installation timed out.",
+            },
+            indent=2,
+        )
     except Exception as exc:
-        return json.dumps({
-            "status": "error",
-            "package": params.package,
-            "error": str(exc),
-        }, indent=2)
+        return json.dumps(
+            {
+                "status": "error",
+                "package": params.package,
+                "error": str(exc),
+            },
+            indent=2,
+        )
 
 
 # -------------------------------------------------------------------
 # Namespace management
 # -------------------------------------------------------------------
+
 
 @mcp.tool(
     name="repl_list_namespace",
@@ -362,19 +389,25 @@ def repl_list_namespace(params: SessionIdInput) -> str:
     """
     session = _sessions.get_session(params.session_id)
     if session is None:
-        return json.dumps({"status": "error", "message": f"Session '{params.session_id}' not found."})
+        return json.dumps(
+            {"status": "error", "message": f"Session '{params.session_id}' not found."}
+        )
 
     variables = {
         k: {"type": type(v).__name__, "preview": _var_preview(v)}
         for k, v in session.namespace.items()
         if not k.startswith("_")
     }
-    return json.dumps({
-        "status": "ok",
-        "session_id": params.session_id,
-        "total": len(variables),
-        "variables": variables,
-    }, indent=2, ensure_ascii=False)
+    return json.dumps(
+        {
+            "status": "ok",
+            "session_id": params.session_id,
+            "total": len(variables),
+            "variables": variables,
+        },
+        indent=2,
+        ensure_ascii=False,
+    )
 
 
 @mcp.tool(
@@ -395,14 +428,19 @@ def repl_get_variable(params: GetVarInput) -> str:
     """
     session = _sessions.get_session(params.session_id)
     if session is None:
-        return json.dumps({"status": "error", "message": f"Session '{params.session_id}' not found."})
+        return json.dumps(
+            {"status": "error", "message": f"Session '{params.session_id}' not found."}
+        )
 
     if params.var_name not in session.namespace:
-        return json.dumps({
-            "status": "error",
-            "message": f"Variable '{params.var_name}' not found.",
-            "available": list(session.variable_summary().keys()),
-        }, indent=2)
+        return json.dumps(
+            {
+                "status": "error",
+                "message": f"Variable '{params.var_name}' not found.",
+                "available": list(session.variable_summary().keys()),
+            },
+            indent=2,
+        )
 
     value = session.namespace[params.var_name]
     try:
@@ -410,12 +448,16 @@ def repl_get_variable(params: GetVarInput) -> str:
     except (TypeError, ValueError):
         serialized = str(value)
 
-    return json.dumps({
-        "status": "ok",
-        "variable": params.var_name,
-        "type": type(value).__name__,
-        "value": serialized,
-    }, indent=2, ensure_ascii=False)
+    return json.dumps(
+        {
+            "status": "ok",
+            "variable": params.var_name,
+            "type": type(value).__name__,
+            "value": serialized,
+        },
+        indent=2,
+        ensure_ascii=False,
+    )
 
 
 @mcp.tool(
@@ -438,7 +480,9 @@ def repl_set_variable(params: SetVarInput) -> str:
     """
     session = _sessions.get_session(params.session_id)
     if session is None:
-        return json.dumps({"status": "error", "message": f"Session '{params.session_id}' not found."})
+        return json.dumps(
+            {"status": "error", "message": f"Session '{params.session_id}' not found."}
+        )
 
     try:
         value = json.loads(params.json_value)
@@ -446,12 +490,15 @@ def repl_set_variable(params: SetVarInput) -> str:
         value = params.json_value  # store as raw string
 
     session.namespace[params.var_name] = value
-    return json.dumps({
-        "status": "ok",
-        "variable": params.var_name,
-        "type": type(value).__name__,
-        "preview": _var_preview(value),
-    }, indent=2)
+    return json.dumps(
+        {
+            "status": "ok",
+            "variable": params.var_name,
+            "type": type(value).__name__,
+            "preview": _var_preview(value),
+        },
+        indent=2,
+    )
 
 
 @mcp.tool(
@@ -472,21 +519,29 @@ def repl_delete_variable(params: GetVarInput) -> str:
     """
     session = _sessions.get_session(params.session_id)
     if session is None:
-        return json.dumps({"status": "error", "message": f"Session '{params.session_id}' not found."})
+        return json.dumps(
+            {"status": "error", "message": f"Session '{params.session_id}' not found."}
+        )
 
     if params.var_name not in session.namespace:
-        return json.dumps({
-            "status": "error",
-            "message": f"Variable '{params.var_name}' not found.",
-            "available": list(session.variable_summary().keys()),
-        }, indent=2)
+        return json.dumps(
+            {
+                "status": "error",
+                "message": f"Variable '{params.var_name}' not found.",
+                "available": list(session.variable_summary().keys()),
+            },
+            indent=2,
+        )
 
     del session.namespace[params.var_name]
-    return json.dumps({
-        "status": "ok",
-        "deleted": params.var_name,
-        "remaining": list(session.variable_summary().keys()),
-    }, indent=2)
+    return json.dumps(
+        {
+            "status": "ok",
+            "deleted": params.var_name,
+            "remaining": list(session.variable_summary().keys()),
+        },
+        indent=2,
+    )
 
 
 @mcp.tool(
@@ -507,20 +562,26 @@ def repl_clear_namespace(params: SessionIdInput) -> str:
     """
     session = _sessions.get_session(params.session_id)
     if session is None:
-        return json.dumps({"status": "error", "message": f"Session '{params.session_id}' not found."})
+        return json.dumps(
+            {"status": "error", "message": f"Session '{params.session_id}' not found."}
+        )
 
     cleared = list(session.variable_summary().keys())
     session.namespace.clear()
-    return json.dumps({
-        "status": "ok",
-        "cleared_count": len(cleared),
-        "cleared": cleared,
-    }, indent=2)
+    return json.dumps(
+        {
+            "status": "ok",
+            "cleared_count": len(cleared),
+            "cleared": cleared,
+        },
+        indent=2,
+    )
 
 
 # -------------------------------------------------------------------
 # Session management
 # -------------------------------------------------------------------
+
 
 @mcp.tool(
     name="repl_list_sessions",
@@ -538,11 +599,14 @@ def repl_list_sessions() -> str:
     Returns:
         JSON array of sessions with IDs, timestamps, and variable counts.
     """
-    return json.dumps({
-        "status": "ok",
-        "total": _sessions.count,
-        "sessions": _sessions.list_sessions(),
-    }, indent=2)
+    return json.dumps(
+        {
+            "status": "ok",
+            "total": _sessions.count,
+            "sessions": _sessions.list_sessions(),
+        },
+        indent=2,
+    )
 
 
 @mcp.tool(
@@ -562,15 +626,20 @@ def repl_delete_session(params: SessionIdInput) -> str:
         Confirmation message.
     """
     deleted = _sessions.delete_session(params.session_id)
-    return json.dumps({
-        "status": "ok" if deleted else "error",
-        "message": "Session deleted." if deleted else f"Session '{params.session_id}' not found.",
-    })
+    return json.dumps(
+        {
+            "status": "ok" if deleted else "error",
+            "message": "Session deleted."
+            if deleted
+            else f"Session '{params.session_id}' not found.",
+        }
+    )
 
 
 # -------------------------------------------------------------------
 # Debug / introspection
 # -------------------------------------------------------------------
+
 
 @mcp.tool(
     name="repl_get_history",
@@ -592,15 +661,21 @@ def repl_get_history(params: HistoryInput) -> str:
     """
     session = _sessions.get_session(params.session_id)
     if session is None:
-        return json.dumps({"status": "error", "message": f"Session '{params.session_id}' not found."})
+        return json.dumps(
+            {"status": "error", "message": f"Session '{params.session_id}' not found."}
+        )
 
-    entries = session.history[-params.last_n:]
-    return json.dumps({
-        "status": "ok",
-        "total_entries": len(session.history),
-        "returned": len(entries),
-        "entries": [asdict(e) for e in entries],
-    }, indent=2, default=str)
+    entries = session.history[-params.last_n :]
+    return json.dumps(
+        {
+            "status": "ok",
+            "total_entries": len(session.history),
+            "returned": len(entries),
+            "entries": [asdict(e) for e in entries],
+        },
+        indent=2,
+        default=str,
+    )
 
 
 @mcp.tool(
@@ -619,25 +694,29 @@ def repl_server_status() -> str:
     Returns:
         JSON with Python version, session count, configuration, and limits.
     """
-    return json.dumps({
-        "status": "ok",
-        "python_version": sys.version,
-        "active_sessions": _sessions.count,
-        "config": {
-            "timeout_seconds": _config.timeout_seconds,
-            "max_sessions": _config.max_sessions,
-            "session_ttl_minutes": _config.session_ttl_minutes,
-            "sandbox_enabled": _config.sandbox_enabled,
-            "max_output_bytes": _config.max_output_bytes,
-            "transport": _config.transport,
+    return json.dumps(
+        {
+            "status": "ok",
+            "python_version": sys.version,
+            "active_sessions": _sessions.count,
+            "config": {
+                "timeout_seconds": _config.timeout_seconds,
+                "max_sessions": _config.max_sessions,
+                "session_ttl_minutes": _config.session_ttl_minutes,
+                "sandbox_enabled": _config.sandbox_enabled,
+                "max_output_bytes": _config.max_output_bytes,
+                "transport": _config.transport,
+            },
+            "working_directory": os.getcwd(),
         },
-        "working_directory": os.getcwd(),
-    }, indent=2)
+        indent=2,
+    )
 
 
 # ===================================================================
 # Helpers
 # ===================================================================
+
 
 def _is_command_available(cmd: str) -> bool:
     try:
@@ -654,6 +733,7 @@ def _is_command_available(cmd: str) -> bool:
 # ===================================================================
 # Entry point
 # ===================================================================
+
 
 def main() -> None:
     """CLI entry point for mcp-python-repl."""

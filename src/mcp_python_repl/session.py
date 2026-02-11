@@ -48,11 +48,7 @@ class Session:
 
     def variable_summary(self) -> dict[str, str]:
         """Return {name: type_name} for every user variable."""
-        return {
-            k: type(v).__name__
-            for k, v in self.namespace.items()
-            if not k.startswith("_")
-        }
+        return {k: type(v).__name__ for k, v in self.namespace.items() if not k.startswith("_")}
 
 
 class SessionManager:
