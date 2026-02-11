@@ -64,7 +64,3 @@ packages = ["src/mcp_python_repl"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-
-[pypi]
-username = __token__
-password = pypi-TON_TOKEN_ICI
